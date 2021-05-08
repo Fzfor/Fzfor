@@ -24,6 +24,17 @@ import scala.util.Random
  *    startNewChain 和前面断开，与后边继续合并
  *    可以全局进行打散 env.disableOperatorChain()
  *
+ * min（）其他字段为第一个事件的值
+ * mingby（）其他字段值为最小值事件的值
+ *
+ * split逻辑上按照不同的戳分流 配合select使用 以后会弃用，以后使用processFunction中的侧输出流
+ *
+ * connect和coMap 两条流的数据类型可以不一样 一国两制
+ *
+ * 序列化 反序列化，需要一套数据类型
+ *
+ *
+ *
  * @author fzfor
  * @date 21:41 2021/05/06
  */
