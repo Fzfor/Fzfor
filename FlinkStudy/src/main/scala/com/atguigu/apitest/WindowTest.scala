@@ -3,8 +3,11 @@ package com.atguigu.apitest
 import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks}
+import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.scala.function.{ProcessWindowFunction, WindowFunction}
+import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.api.windowing.assigners.{EventTimeSessionWindows, TumblingEventTimeWindows}
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
@@ -51,6 +54,26 @@ import scala.collection.JavaConversions.iterableAsScalaIterable
  *
  * 程序默认的时间语义，是processing time
  *
+ * 1.watermark就是事件时间，代表当前时间的进展
+ * 2.watermark主要用来处理乱序数据，一般就是直接定义一个延迟时间，延迟触发窗口操作，
+ *    这里的延迟，指的是当前收到的数据内的时间戳
+ * 3.watermark延迟时间的设置，一般要根据数据的乱序情况来定，通常设置成最大乱序程度
+ * 4.关窗操作，必须是时间进展到窗口关闭时间，事件时间语义下就是watermark达到窗口关闭时间
+ * 5.watermark代表的含义是，之后就不会有比watermark时间戳还晚的事件来
+ * 如果有不同的上游分区，当前任务会对他们创建各自的分区watermark，当前任务的事件时间就是最小的那个
+ *
+ * 6.处理乱序数据，flink有三重保证
+ * watermark可以设置延迟时间
+ * window的allowedlateness方法，可以设置窗口允许处理迟到数据的时间
+ * window的sideoutputlatedata方法，可以将迟到的数据写入侧输出流
+ *
+ * 窗口有两个重要操作，出发计算，清空状态（关闭窗口）
+ *
+ *
+ * watermark是一条特殊的数据记录
+ * watermark必须单调递增，以确保任务的事件时间时钟在向前推进，而不是在后退
+ * watermark与数据的时间相关
+ *
  *
  *
  * aggregate : 输出类型和reduce类型不一样
@@ -72,7 +95,10 @@ object WindowTest {
       SensorReading(datas(0), datas(1).toLong, datas(2).toDouble)
     })
 //      .assignAscendingTimestamps(_.timestamp * 1000)
-      .assignTimestampsAndWatermarks()
+//      .assignTimestampsAndWatermarks(new MyWMAssigner(1000L))
+      .assignTimestampsAndWatermarks(new BoundedOutOfOrdernessTimestampExtractor[SensorReading](Time.seconds(1)) {
+        override def extractTimestamp(element: SensorReading): Long = element.timestamp * 1000L
+      })
 
     val result = dataStream
       .keyBy("id")
@@ -101,4 +127,36 @@ class MyReduce extends ReduceFunction[SensorReading]{
   override def reduce(value1: SensorReading, value2: SensorReading): SensorReading = {
     SensorReading(value1.id,value1.timestamp.max(value2.timestamp),value1.temperature.min(value2.temperature))
   }
+}
+
+//自定义一个周期性生成watermark的assigner
+class MyWMAssigner(lateness: Long) extends AssignerWithPeriodicWatermarks[SensorReading]{
+  //需要两个关键参数，延迟时间，和当前所有数据中最大的时间戳
+//  val lateness : Long = 1000L
+  var maxTs: Long = Long.MinValue
+
+  override def getCurrentWatermark: Watermark = {
+    new Watermark(maxTs - lateness)
+  }
+
+
+  override def extractTimestamp(element: SensorReading, previousElementTimestamp: Long): Long = {
+    maxTs = maxTs.max(element.timestamp * 1000L)
+    element.timestamp * 1000L
+  }
+
+}
+
+//自定义一个断点式生成watermark的assigner
+class MyWMAssigner2 extends AssignerWithPunctuatedWatermarks[SensorReading]{
+  val lateness = 1000L
+  override def checkAndGetNextWatermark(lastElement: SensorReading, extractedTimestamp: Long): Watermark = {
+    if (lastElement.id == "sensor_1") {
+      new Watermark(extractedTimestamp - lateness)
+    } else {
+      null
+    }
+  }
+
+  override def extractTimestamp(element: SensorReading, previousElementTimestamp: Long): Long = element.timestamp * 1000L
 }

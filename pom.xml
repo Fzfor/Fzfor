@@ -10,6 +10,7 @@
     <version>1.0-SNAPSHOT</version>
     <modules>
         <module>FlinkStudy</module>
+        <module>hbase-use</module>
     </modules>
 
     <properties>
