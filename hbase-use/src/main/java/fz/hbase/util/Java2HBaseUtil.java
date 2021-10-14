@@ -6,8 +6,14 @@ import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.filter.*;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+
+import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 
 /**
@@ -55,7 +61,60 @@ public class Java2HBaseUtil {
 //        scanTable("test");
 //        deleteTable("test");
 
-        createTableNoPartition("student","info");
+//        createTableNoPartition("student","info");
+//        addFamily("student", "info2");
+//        listTables();
+//        deleteFamily("student", "info2");
+//        listTables();
+
+        System.out.println(getSplitForRadix(3, 10, "00", "11").toString());
+    }
+
+    /**
+     * 列出所有的表名 列名
+     */
+    public static void listTables(){
+        try {
+            Admin admin = conn.getAdmin();
+            TableName[] tableNames = admin.listTableNames();
+            System.out.println("数据库中的表如下：");
+            System.out.println("************************");
+            for (TableName tableName : tableNames) {
+                HTableDescriptor tableDescriptor = admin.getTableDescriptor(tableName);
+                System.out.println("***********");
+                System.out.println("***表名："+tableName);
+                System.out.println("***列族：");
+                for(HColumnDescriptor hcp : tableDescriptor.getFamilies()){
+                    System.out.println("  " + hcp.getNameAsString());
+                }
+                System.out.println("***********");
+
+            }
+            System.out.println("************************");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    /**
+     * 向目标表添加列族
+     * @param tableNameStr
+     * @param familyName
+     * @throws IOException
+     */
+    public static void addFamily(String tableNameStr,String familyName) throws IOException {
+        Logger logger = LoggerFactory.getLogger(Java2HBaseUtil.class);
+        logger.info("获取连接");
+        Admin admin = conn.getAdmin();
+        TableName tableName=TableName.valueOf(tableNameStr);
+        logger.info("disable 表");
+        admin.disableTable(tableName);
+        HTableDescriptor tableDescriptor = admin.getTableDescriptor(tableName);
+        HColumnDescriptor hColumnDescriptor = new HColumnDescriptor(familyName);
+        tableDescriptor.addFamily(hColumnDescriptor);
+        logger.info("添加列族");
+        admin.modifyTable(tableName,tableDescriptor);
+        admin.enableTable(tableName);
+        admin.close();
     }
 
     /**
@@ -341,6 +400,58 @@ public class Java2HBaseUtil {
     }
 
     /**
+     * 删除指定表的一个列族
+     * @param tableNameStr
+     * @param deleteFamily
+     */
+    public static void deleteFamily(String tableNameStr, String deleteFamily){
+        try {
+            Admin admin = conn.getAdmin();
+            TableName tableName = TableName.valueOf(tableNameStr);
+            if(!admin.tableExists(tableName)) throw new Exception("所要删除的表不存在");
+            if(admin.isTableEnabled(tableName)){
+                admin.disableTable(tableName);
+                System.out.println("disable table");
+                admin.deleteColumn(tableName, Bytes.toBytes(deleteFamily));
+                admin.enableTable(tableName);
+                System.out.println("enable table");
+            }else {
+                System.out.println("delete deleteFamily !");
+                admin.deleteColumn(tableName, Bytes.toBytes(deleteFamily));
+                admin.enableTable(tableName);
+                System.out.println("enable table !");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 预分区工具
+     * @param region hbase region server的节点数
+     * @param radix 进制 10|16
+     * @param start 开始 比如：00
+     * @param end 结束 比如：ff
+     * @return
+     */
+    public static List<String> getSplitForRadix(int region, int radix, String start, String end) {
+        Integer s = Integer.parseInt(start);
+        Integer e = Long.valueOf(end, radix).intValue() + 1;
+        return IntStream
+                .range(s, e)
+                .filter(value -> (value % ((e - s) / region)) == 0)
+                .mapToObj(value -> {
+                    if (radix == 16) {
+                        return Integer.toHexString(value);
+                    } else {
+                        return String.valueOf(value);
+                    }
+                })
+                .skip(1)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * 关闭资源
      * @throws Exception
      */
@@ -350,4 +461,6 @@ public class Java2HBaseUtil {
             conn.close();
         }
     }
+
+
 }

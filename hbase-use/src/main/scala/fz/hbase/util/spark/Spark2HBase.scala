@@ -82,7 +82,7 @@ object Spark2HBase {
     }
     //保存到HBase表
     data.saveAsHadoopDataset(jobConf)
-    sc.stop()
+    sparkSession.close()
   }
 
 
