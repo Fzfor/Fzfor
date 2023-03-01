@@ -1,0 +1,1 @@
+java -classpath com.asiainfo.bjlbs.app.Write2HDFSApp

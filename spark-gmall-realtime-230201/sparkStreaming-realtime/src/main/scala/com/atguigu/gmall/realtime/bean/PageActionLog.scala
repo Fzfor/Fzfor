@@ -28,6 +28,7 @@ case class PageActionLog(
                           action_id:String,
                           action_item:String,
                           action_item_type:String,
+                          action_ts: Long,
                           ts:Long
 
                         )
