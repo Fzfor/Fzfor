@@ -21,7 +21,7 @@ object MyKafkaUtils {
    *
    * ConsumerConfig
    */
-  private val consumerConfigs: mutable.Map[String, Object] = mutable.Map[String,Object](
+  private val consumerConfigs: mutable.Map[String, Object] = mutable.Map[String, Object](
     // kafka集群位置
     //ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG -> "hadoop102:9092,hadoop103:9092,hadoop104:9092",
     //ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG -> MyPropsUtils("kafka.bootstrap-servers"),
@@ -43,7 +43,7 @@ object MyKafkaUtils {
   /**
    * 基于SparkStreaming消费，获取到kafkaDStream， 使用默认的offset
    */
-  def getKafkaDStream(ssc: StreamingContext, topic: String, groupId: String)={
+  def getKafkaDStream(ssc: StreamingContext, topic: String, groupId: String) = {
     consumerConfigs.put(ConsumerConfig.GROUP_ID_CONFIG, groupId)
 
     val kafkaSDtream = KafkaUtils.createDirectStream(ssc,
@@ -55,7 +55,7 @@ object MyKafkaUtils {
   /**
    * 基于SparkStreaming消费，获取到kafkaDStream， 使用指定的offset
    */
-  def getKafkaDStream(ssc: StreamingContext, topic: String, groupId: String, offsets: Map[TopicPartition, Long])={
+  def getKafkaDStream(ssc: StreamingContext, topic: String, groupId: String, offsets: Map[TopicPartition, Long]) = {
     consumerConfigs.put(ConsumerConfig.GROUP_ID_CONFIG, groupId)
 
     val kafkaSDtream = KafkaUtils.createDirectStream(ssc,
@@ -74,7 +74,7 @@ object MyKafkaUtils {
   /**
    * 创建生产者对象
    */
-  def createProducer()={
+  def createProducer() = {
     val producerConfigs = new util.HashMap[String, AnyRef]
     //生产者配置类： ProducerConfig
     //kafka集群配置
@@ -98,14 +98,14 @@ object MyKafkaUtils {
    * 生产（按照默认的粘性分区策略）
    *
    */
-  def send(topic: String, msg: String) ={
+  def send(topic: String, msg: String) = {
     producer.send(new ProducerRecord[String, String](topic, msg))
   }
 
   /**
    * 生产（按照key进行分区）
    */
-  def send(topic: String, key: String, msg: String)={
+  def send(topic: String, key: String, msg: String) = {
     producer.send(new ProducerRecord[String, String](topic, key, msg))
   }
 
@@ -119,7 +119,7 @@ object MyKafkaUtils {
   /**
    * 刷写，将缓冲区的数据刷写到磁盘
    */
-  def flush(): Unit ={
+  def flush(): Unit = {
     producer.flush()
   }
 

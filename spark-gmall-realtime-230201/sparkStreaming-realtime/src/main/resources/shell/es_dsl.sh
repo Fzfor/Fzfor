@@ -502,7 +502,7 @@ GET movie_index/_search
     "group_by_actor_name": {
       "terms": {
         "field": "actorList.name.keyword",
-        "size": 10
+        "size": 3
       }
     }
   }
@@ -913,6 +913,7 @@ PUT movie_test2023-03-02/_doc/3
 GET movie_test2023-03-02/_search
 GET movie_test-query/_search
 GET movie_test2023-03-02/_mapping
+GET movie_index/_mapping
 
 # 查看所有模板
 GET _cat/templates?v
@@ -920,4 +921,434 @@ GET _cat/templates?v
 
 # 查看某个模板详情
 GET _template/template_movie2023
+
+
+# 主动触发合并操作：
+POST movie_index/_forcemerge?max_num_segments=1
+
+# 查看索引的段情况
+GET _cat/indices/?s=segmentsCount:desc&v&h=index,segmentsCount,segmentsMemory,memoryTotal,storeSize,p,r
+
+
+GET movie_test/_search
+
+GET movie0304/_search
+
+GET movie0304/_mapping
+
+
+
+
+# search :
+# * 查询 doubanScore>=5.0 关键词搜索 red sea
+# * 关键词高亮显示
+# * 显示第一页，每页 2 条
+# * 按 doubanScore 从大到小排序
+GET movie_index/_search
+{
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "range": {
+            "doubanScore": {
+              "gte": 5.0
+            }
+          }
+        }
+      ]
+      ,
+      "must": [
+        {
+          "match": {
+            "name": "red sea"
+          }
+        }
+      ]
+    }
+  }
+  ,
+  "highlight": {
+    "fields": {
+      "name": {}
+    }
+  }
+  ,
+  "from": 0
+  ,
+  "size": 1
+  ,
+  "sort": [
+    {
+      "doubanScore": {
+        "order": "desc"
+      }
+    }
+  ]
+
+}
+
+
+# 查询每位演员参演的电影的平均分，倒叙排序
+GET movie_index/_search
+{
+  "aggs": {
+    "groupByName": {
+      "terms": {
+        "field": "actorList.name.keyword",
+        "size": 10,
+        "order": {
+          "doubanScoreAvg": "desc"
+        }
+      }
+      ,
+      "aggs": {
+        "doubanScoreAvg": {
+          "avg": {
+            "field": "doubanScore"
+          }
+        }
+      }
+    }
+  }
+  ,
+  "size": 0
+}
+
+
+
+#实时数仓日活索引模板
+PUT _template/gmall_dau_info_template
+{
+ "index_patterns": ["gmall_dau_info*"],
+ "settings": {
+ "number_of_shards": 3,
+ "index.max_result_window" :"5000000"
+ },
+ "aliases" : {
+ "{index}-query": {},
+ "gmall_dau_info_all":{}
+ },
+ "mappings": {
+ "properties":{
+ "mid":{
+ "type":"keyword"
+ },
+ "user_id":{
+ "type":"keyword"
+ },
+ "province_id":{
+ "type":"keyword"
+ },
+ "channel":{
+ "type":"keyword"
+ },
+ "is_new":{
+ "type":"keyword"
+ },
+ "model":{
+ "type":"keyword"
+ },
+ "operate_system":{
+ "type":"keyword"
+ },
+ "version_code":{
+ "type":"keyword"
+ },
+ "page_id":{
+ "type":"keyword"
+ },
+ "page_item":{
+ "type":"keyword"
+ },
+ "page_item_type":{
+ "type":"keyword"
+ },
+ "during_time":{
+ "type":"long"
+ },
+ "user_gender":{
+ "type":"keyword"
+ },
+ "user_age":{
+ "type":"integer"
+ },
+ "province_name":{
+ "type":"keyword"
+ },
+ "province_iso_code":{
+ "type":"keyword"
+ },
+ "province_3166_2":{
+ "type":"keyword"
+ },
+ "province_area_code":{
+ "type":"keyword"
+ },
+ "dt":{
+ "type":"keyword"
+ },
+  "hr":{
+ "type":"keyword"
+ },
+ "ts":{
+ "type":"date"
+ }
+ }
+ }
+}
+
+GET gmall_dau_info_1018_2022-03-28/_search
+
+GET gmall_dau_info_all/_search
+
+GET _cat/indices/?v
+
+GET _cat/aliases/?v
+
+
+
+
+#实时数仓宽表索引模板
+PUT _template/gmall_order_wide_template
+{
+ "index_patterns": ["gmall_order_wide*"],
+ "settings": {
+ "number_of_shards": 3
+ },
+ "aliases" : {
+ "{index}-query": {},
+ "gmall_order_wide-query":{}
+ },
+ "mappings" : {
+ "properties" : {
+ "detail_id" : {
+ "type" : "keyword"
+ },
+ "order_id" : {
+ "type" : "keyword"
+ },
+ "sku_id" : {
+ "type" : "keyword"
+ },
+ "sku_num" : {
+ "type" : "long"
+ },
+ "sku_name" : {
+ "type" : "text",
+ "analyzer": "ik_max_word"
+ },
+ "order_price" : {
+ "type" : "float"
+ },
+ "split_total_amount" : {
+ "type" : "float"
+ },
+ "split_activity_amount" : {
+ "type" : "float"
+ },
+ "split_coupon_amount" : {
+ "type" : "float"
+ },
+ "province_id" : {
+ "type" : "keyword"
+ },
+ "order_status" : {
+ "type" : "keyword"
+ },
+ "user_id" : {
+ "type" : "keyword"
+ },
+ "total_amount" : {
+ "type" : "float"
+ },
+ "activity_reduce_amount" : {
+ "type" : "float"
+ },
+ "coupon_reduce_amount" : {
+ "type" : "float"
+ },
+ "original_total_amount" : {
+ "type" : "float"
+ },
+ "feight_fee" : {
+ "type" : "float"
+ },
+ "feight_fee_reduce" : {
+ "type" : "float"
+ },
+ "expire_time" : {
+ "type" : "date" ,
+ "format" : "yyyy-MM-dd HH:mm:ss"
+ },
+ "refundable_time" : {
+ "type" : "date" ,
+ "format" : "yyyy-MM-dd HH:mm:ss"
+ },
+ "create_time" : {
+ "type" : "date" ,
+ "format" : "yyyy-MM-dd HH:mm:ss"
+ },
+ "operate_time" : {
+ "type" : "date" ,
+ "format" : "yyyy-MM-dd HH:mm:ss"
+ },
+ "create_date" : {
+ "type" : "keyword"
+ },
+ "create_hour" : {
+ "type" : "keyword"
+ },
+ "province_name" : {
+ "type" : "keyword"
+ },
+ "province_area_code" : {
+ "type" : "keyword"
+ },
+ "province_3166_2_code" : {
+ "type" : "keyword"
+ },
+ "province_iso_code" : {
+ "type" : "keyword"
+ },
+ "user_age" : {
+ "type" : "long"
+ },
+ "user_gender" : {
+ "type" : "keyword"
+ }
+ }
+ }
+ }
+
+
+GET gmall_order_wide-query/_search
+
+
+GET gmall_dau_info_1018_2022-03-28/_search
+{
+  "_source": "mid"
+}
+
+
+#修改配置扩大返回结果数，如下：
+PUT /_settings
+{
+ "index.max_result_window" :"5000000"
+}
+
+
+GET gmall_dau_info_1018_2023-03-08/_search
+
+GET gmall_order_wide_1018_2023-03-08/_search
+
+GET gmall_dau_info_1018_2022-03-28/_search
+{
+  "size": 0
+}
+
+GET gmall_dau_info_1018_2022-03-28/_search
+{
+  "aggs": {
+    "gruopbyhr": {
+      "terms": {
+        "field": "hr",
+        "size": 24
+      }
+    }
+  }
+  ,
+  "size": 0
+}
+
+#因为会进行分词，有小米  手机都会搜索出来 17条
+GET gmall_order_wide_1018_2022-03-29/_search
+{
+  "query": {
+    "match": {
+      "sku_name": "小米手机"
+    }
+  }
+}
+
+
+#既要有小米，也要有手机，同时满足 8条
+GET gmall_order_wide_1018_2022-03-29/_search
+{
+  "query": {
+    "match": {
+      "sku_name": {
+        "query": "小米手机",
+        "operator": "and"
+      }
+    }
+  }
+  ,
+  "aggs": {
+    "groupbygender": {
+      "terms": {
+        "field": "user_gender",
+        "size": 2
+      }
+      ,
+      "aggs": {
+        "totalamount": {
+          "sum": {
+            "field": "split_total_amount"
+          }
+        }
+      }
+    }
+  }
+  ,
+  "size": 0
+}
+
+
+GET gmall_order_wide_1018_2022-03-29/_search
+{
+  "_source": ["create_time",
+              "order_price",
+              "province_name",
+              "sku_name",
+              "sku_num",
+              "total_amount",
+              "user_age",
+              "user_gender"]
+  ,
+  "query": {
+    "match": {
+      "sku_name": {
+        "query": "小米手机",
+        "operator": "and"
+      }
+    }
+  }
+  ,
+  "from": 0
+  ,
+  "size": 2
+  ,
+  "highlight": {
+    "fields": {
+      "sku_name": {}
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

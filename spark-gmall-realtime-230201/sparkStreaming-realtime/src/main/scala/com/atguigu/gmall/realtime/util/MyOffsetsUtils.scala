@@ -10,12 +10,12 @@ import scala.collection.mutable
  * offset管理工具类，用于往redis中存储和读取offset
  *
  * 管理方法：
- *    1.后置提交偏移量 -> 手动控制偏移量提交
- *    2.手动控制偏移量提交 -> SparkStreaming提供了手动提交方案，但是我们不能用，因为我们会对DStream的结构进行转换。
- *    3.手动的提取偏移量维护到redis中
- *        -> 从kafka中消费到数据，先提取偏移量
- *        -> 邓数据成功写出后，将偏移量存储到redis中
- *        -> 从kafka中消费数据之前，先到redis中读取偏移量，使用读取到的偏移量到kafka中消费数据
+ * 1.后置提交偏移量 -> 手动控制偏移量提交
+ * 2.手动控制偏移量提交 -> SparkStreaming提供了手动提交方案，但是我们不能用，因为我们会对DStream的结构进行转换。
+ * 3.手动的提取偏移量维护到redis中
+ * -> 从kafka中消费到数据，先提取偏移量
+ * -> 邓数据成功写出后，将偏移量存储到redis中
+ * -> 从kafka中消费数据之前，先到redis中读取偏移量，使用读取到的偏移量到kafka中消费数据
  *
  * @author fzfor
  * @date 13:16 2023/02/04
@@ -23,7 +23,7 @@ import scala.collection.mutable
 object MyOffsetsUtils {
 
   /**
-   *在redis中怎么存？
+   * 在redis中怎么存？
    * 类型：string，list，set，zset，hash
    * key：groupid + topic
    * value：partition + offset

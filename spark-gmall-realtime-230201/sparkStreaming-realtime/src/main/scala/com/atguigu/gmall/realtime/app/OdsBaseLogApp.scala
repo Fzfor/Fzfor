@@ -187,8 +187,8 @@ object OdsBaseLogApp {
             //TODO 进行kafka 刷写
             MyKafkaUtils.flush()
 
-          }//jsonObjIter end
-        )//rdd.foreachPartition end
+          } //jsonObjIter end
+        ) //rdd.foreachPartition end
 
         /* 原始写法
         rdd.foreach(
@@ -200,7 +200,7 @@ object OdsBaseLogApp {
 
 
         //foreachRDD里面，foreach外面：提交offset Driver端执行，一批次执行一次（周期性）
-        MyOffsetsUtils.saveOffset(topic,groupId, offsetRanges)
+        MyOffsetsUtils.saveOffset(topic, groupId, offsetRanges)
 
       } // rdd => { --- end
     ) //sonObjDStream.foreachRDD --- end

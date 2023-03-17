@@ -3,7 +3,7 @@ package com.atguigu.gmall.realtime.app
 import com.alibaba.fastjson.serializer.SerializeConfig
 import com.alibaba.fastjson.{JSON, JSONObject}
 import com.atguigu.gmall.realtime.bean.{OrderDetail, OrderInfo, OrderWide}
-import com.atguigu.gmall.realtime.util.{MyKafkaUtils, MyOffsetsUtils, MyRedisUtils}
+import com.atguigu.gmall.realtime.util.{MyEsUtils, MyKafkaUtils, MyOffsetsUtils, MyRedisUtils}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.SparkConf
@@ -42,7 +42,7 @@ object DwdOrderApp {
     var orderInfoDStream: InputDStream[ConsumerRecord[String, String]] = null
     if (orderInfoOffsets != null && orderInfoOffsets.nonEmpty) {
       orderInfoDStream = MyKafkaUtils.getKafkaDStream(ssc, orderInfoTopicName, orderInfoGroup, orderInfoOffsets)
-    }else{
+    } else {
       orderInfoDStream = MyKafkaUtils.getKafkaDStream(ssc, orderInfoTopicName, orderInfoGroup)
     }
 
@@ -250,11 +250,29 @@ object DwdOrderApp {
     )
     orderWideDStream.print(100)
 
-
-
     //6.写入ES
-
-    //7.提交offset
+    //按照天分割索引，通过索引模板控制mapping setting aliases等
+    //准备ES工具类
+    orderWideDStream.foreachRDD(
+      rdd => {
+        rdd.foreachPartition(
+          orderWideIter => {
+            val orderWides: List[(String, OrderWide)] = orderWideIter.map(orderWide => (orderWide.detail_id.toString, orderWide)).toList
+            if (orderWides.size > 0) {
+              val head: (String, OrderWide) = orderWides.head
+              val date: String = head._2.create_date
+              //索引名
+              val indexName: String = s"gmall_order_wide_1018_${date}"
+              //写入到ES
+              MyEsUtils.bulkSave(indexName, orderWides)
+            }
+          }
+        )
+        //7.提交offset
+        MyOffsetsUtils.saveOffset(orderInfoTopicName, orderInfoGroup, orderInfoOffsetRanges)
+        MyOffsetsUtils.saveOffset(orderDetailTopicName, orderDetailGroup, orderDetailOffsetRanges)
+      }
+    )
 
     ssc.start()
     ssc.awaitTermination()
